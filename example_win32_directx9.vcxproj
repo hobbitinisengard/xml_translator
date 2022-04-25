@@ -156,8 +156,10 @@
     <ClCompile Include="..\..\backends\imgui_impl_dx9.cpp" />
     <ClCompile Include="..\..\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="curl_wrapper.cpp" />
+    <ClCompile Include="Exceptions.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="XML_Translator.cpp" />
+    <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Translator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\imconfig.h" />
@@ -165,10 +167,11 @@
     <ClInclude Include="..\..\imgui_internal.h" />
     <ClInclude Include="..\..\backends\imgui_impl_dx9.h" />
     <ClInclude Include="..\..\backends\imgui_impl_win32.h" />
+    <ClInclude Include="Application.h" />
     <ClInclude Include="curl_wrapper.h" />
     <ClInclude Include="imfilebrowser.h" />
     <ClInclude Include="Locale.h" />
-    <ClInclude Include="XML_Translator.h" />
+    <ClInclude Include="Translator.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\misc\debuggers\imgui.natvis" />

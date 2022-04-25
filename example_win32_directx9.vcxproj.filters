@@ -37,7 +37,13 @@
     <ClCompile Include="curl_wrapper.cpp">
       <Filter>sources</Filter>
     </ClCompile>
-    <ClCompile Include="XML_Translator.cpp">
+    <ClCompile Include="Translator.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Exceptions.cpp">
+      <Filter>sources</Filter>
+    </ClCompile>
+    <ClCompile Include="Application.cpp">
       <Filter>sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -66,7 +72,10 @@
     <ClInclude Include="Locale.h">
       <Filter>sources</Filter>
     </ClInclude>
-    <ClInclude Include="XML_Translator.h">
+    <ClInclude Include="Translator.h">
+      <Filter>sources</Filter>
+    </ClInclude>
+    <ClInclude Include="Application.h">
       <Filter>sources</Filter>
     </ClInclude>
   </ItemGroup>

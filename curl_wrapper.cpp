@@ -46,7 +46,7 @@ bool cURL_wrapper::Is_auth_key_pro() noexcept
 {
     return cURL_wrapper::auth_key.size() == cURL_wrapper::allowed_key_size_pro;
 }
-std::string cURL_wrapper::run_request(const std::string& text, const std::string& target_lang, const std::string& input_lang)
+std::string cURL_wrapper::run_deepl_request(const std::string& text, const std::string& target_lang, const std::string& input_lang)
 {
     std::list<std::string> header{ "Authorization: DeepL-Auth-Key " + cURL_wrapper::auth_key };
 
@@ -71,19 +71,15 @@ std::string cURL_wrapper::run_request(const std::string& text, const std::string
     result << request;
     std::string str;
     getline(result, str);
-    //text:\" \"a
-    // sprawdŸ to: "message":"Quota Exceeded"
+    if (str.find("\"message\":\"Quota Exceeded") != std::string::npos)
+    {
+        throw out_of_quota_exception();
+    }
+
     const size_t begin = str.find("text\":\"") + 7;
     const size_t end = str.size() - 4;
     if (begin >= end)
         return "";
-    try {
-        str = str.substr(begin, end - begin);
-        return str;
-    }
-    catch (...)
-    {
-        return "";
-    }
-    
+    str = str.substr(begin, end - begin);
+    return str;    
 }

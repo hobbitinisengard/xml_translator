@@ -3,19 +3,10 @@
 #include "imgui_impl_win32.h"
 #include <d3d9.h>
 #include <tchar.h>
-#include "imfilebrowser.h"
-#include <boost/filesystem.hpp>
-#include "boost/algorithm/string.hpp"
-#include "XML_Translator.h"
-#include <iostream>
-#include "Locale.h"
-#include <fcntl.h>
-#include <io.h>
-#include <stdio.h>
-#include <span>
+#include "Application.h"
 
 
-using namespace boost::algorithm;
+//constexpr auto program_name = "XML Translator";
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
 static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
@@ -30,97 +21,7 @@ void ResetDevice();
 
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-constexpr int auth_key_buffer_size = 40;
-std::unique_ptr<cURL_wrapper> curl_wrapper;
-constexpr auto program_conf_name = "config.cfg";
 
-int input_locale_index = 0;
-int output_locale_index = 0;
-// commands table vars
-constexpr int raw_commands_size = 1024 * 16;
-static char text[raw_commands_size] = "DialogsResource.Reply:text";
-const std::vector<Locale*> locales =
-{
-    new Locale("Russian", "ru_RU", "RU"),
-    new Locale("Polish", "pl_PL", "PL"),
-    new Locale("English", "en_GB", "EN"),
-    new Locale("German", "de_DE", "DE"),
-    new Locale("Spanish", "es_ES", "ES"),
-    new Locale("Chinese simpl", "zh_CN", "ZH"),
-    new Locale("Bulgarian", "bg_BG", "BG"),
-    new Locale("Czech", "cs_CZ", "CS"),
-    new Locale("Danish", "da_DK", "DA"),
-    new Locale("Dutch", "nl_NL", "NL"),
-    new Locale("Estonian", "et_EE", "ET"),
-    new Locale("Finnish", "fi_FI", "FI"),
-    new Locale("French", "fr_FR", "FR"),
-    new Locale("Greek", "el_GR", "EL"),
-    new Locale("Hungarian", "hu_HU", "HU"),
-    new Locale("Italian", "it_IT", "IT"),
-    new Locale("Japanese", "ja_JP", "JA"),
-    new Locale("Latvian", "lv_LV", "LV"),
-    new Locale("Lithuanian", "lt_LT", "LT"),
-    new Locale("Portuguese", "pt_PT", "PT"),
-    new Locale("Romanian", "ro_RO", "RO"),
-    new Locale("Slovak", "sk_SK", "SK"),
-    new Locale("Slovenian", "sl_SL", "SL"),
-    new Locale("Swedish", "sv_SE", "SV"),
-};
-constexpr auto helptext = "Enter path to tags you want to translate. Example:\n\n\
-<DialogsResource>\n\
-    <Reply\n\
-        name=\"Dlg_npc_002712\"\n\
-        text=\"Hallo!\"\n\
-        role=\"NPC\"/>\n\
-    <string name=\"global_confirm\">Bevestig</string>\n\
-</DialogsResource>\n\n\
-To translate word Bevestig of in <string>, write: DialogsResource.string\n\
-To translate Hallo! (text attribute of tag Reply), write: DialogsResource.Reply:text\n\
-Every command has to be written in a new line.";
-static void HelpMarker(const char* desc)
-{
-    ImGui::TextDisabled("(HELP)");
-    if (ImGui::IsItemHovered())
-    {
-        ImGui::BeginTooltip();
-        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-        ImGui::TextUnformatted(desc);
-        ImGui::PopTextWrapPos();
-        ImGui::EndTooltip();
-    }
-}
-std::vector<std::string> Process_raw_commands(std::span<char> text)
-{
-    //auto end = std::find(text, text + raw_commands_size, '\0');
-    auto end = std::find(text.begin(), text.end(), '\0');
-    std::string raw_commands = std::string(text.begin(), end);
-    trim(raw_commands);
-    std::vector<std::string> output;
-    boost::split(output, raw_commands, boost::is_any_of("\n"));
-    return output;
-}
-void Save_configuration()
-{
-    
-    std::ofstream ouf(program_conf_name, std::ofstream::trunc);
-    ouf << input_locale_index << std::endl;
-    ouf << output_locale_index << std::endl;
-    ouf << text;
-}
-void Load_configuration()
-{
-    if (!boost::filesystem::exists(program_conf_name))
-        Save_configuration();
-    
-    std::ifstream inf(program_conf_name);
-    std::string line;
-    std::getline(inf, line);
-    input_locale_index = std::stoi(line);
-    std::getline(inf, line);
-    output_locale_index = std::stoi(line);
-    std::getline(inf, line);
-    strcpy(text, line.c_str());
-}
 // Main code
 int main(int, char**)
 {
@@ -172,29 +73,14 @@ int main(int, char**)
     //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
     //IM_ASSERT(font != NULL);
 
-    // States
-    bool refreshed_translate_window = false;
-    bool show_demo_window = true;
-    bool show_another_window = false;
-    bool show_fullscreen = true;
-    bool show_enter_auth_window = true;
-    bool show_error_message = false;
-    bool got_auth_key = false;
-    bool try_read_auth_key = true;
-    Xml_translator xml_parser;
-    std::string path;
+    
     const ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    // create a file browser instance
-    ImGui::FileBrowser fileDialog;
-
-    // (optional) set browser properties
-    fileDialog.SetTitle("File browser");
-    fileDialog.SetTypeFilters({ ".xml"});
-
-    // Main loop
     bool done = false;
-    Load_configuration();
+
+    // Init XML Translator
+    Application app;
+
     while (!done)
     {
         // Poll and handle messages (inputs, window resize, etc.)
@@ -215,168 +101,8 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        // XML translator fullscreen 
-        //-----------------
-
-        static bool use_work_area = true;
-        static ImGuiWindowFlags flags =
-            ImGuiWindowFlags_NoDecoration |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoCollapse;
-
-        // We demonstrate using the full viewport area or the work area (without menu-bars, task-bars etc.)
-        // Based on your use case you may want one of the other.
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(use_work_area ? viewport->WorkPos : viewport->Pos);
-        ImGui::SetNextWindowSize(use_work_area ? viewport->WorkSize : viewport->Size);
-        static int combo_flags = ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_HeightLargest;
-        if (ImGui::Begin("Example: Fullscreen window", &show_fullscreen, flags))
-        {
-            if (curl_wrapper)
-                if (ImGui::Button(("Auth-key: " + curl_wrapper->auth_key).c_str())) {
-                    curl_wrapper.reset();
-                    got_auth_key = false;
-                    try_read_auth_key = false;
-                }
-                    
-            if (!got_auth_key)
-            {
-                // 
-                if (try_read_auth_key)
-                {
-                    try {
-                        curl_wrapper = std::make_unique<cURL_wrapper>();
-                    }
-                    catch(...)
-                    {
-                    }
-                    try_read_auth_key = false;
-                }
-
-                if (!curl_wrapper)
-                {
-                    static char auth_key_buffer[auth_key_buffer_size] = "";
-                    ImGui::SetNextWindowSize(ImVec2(700,70));
-                    ImGui::Begin("Enter API auth key to deepl account", &show_enter_auth_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-                    ImGui::SetWindowFocus();
-                    if (ImGui::InputText("##label3", auth_key_buffer, auth_key_buffer_size, ImGuiInputTextFlags_EnterReturnsTrue))
-                    {
-                        try
-                        {
-                            curl_wrapper = std::make_unique<cURL_wrapper>(auth_key_buffer);
-                        }
-                        catch(...)
-                        {
-                            // if provided auth_key is bad
-                        }
-                    }
-                    ImGui::SetWindowFocus();
-                    ImGui::End();
-                }
-            }
-            //ImGui::SameLine();
-            const char* input_combo_preview_value = locales[input_locale_index]->name.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
-            ImGui::Text("Input: ");
-            ImGui::SameLine();
-            if (ImGui::BeginCombo("##label", input_combo_preview_value, combo_flags))
-            {
-                for (int n = 0; n < locales.size(); ++n)
-                {
-                    const bool is_selected = (input_locale_index == n);
-                    if (ImGui::Selectable(locales[n]->name.c_str(), is_selected))
-                        input_locale_index = n;
-
-                    // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-            // combobox
-            
-            const char* output_combo_preview_value = locales[output_locale_index]->name.c_str();  // Pass in the preview value visible before opening the combo (it could be anything)
-            ImGui::Text("Output:");
-            ImGui::SameLine();
-            if (ImGui::BeginCombo("##label2", output_combo_preview_value, combo_flags))
-            {
-                for (int n = 0; n < locales.size(); ++n)
-                {
-                    const bool is_selected = (output_locale_index == n);
-                    if (ImGui::Selectable(locales[n]->name.c_str(), is_selected))
-                        output_locale_index = n;
-
-                    // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                }
-                ImGui::EndCombo();
-            }
-
-            // open and read XML file
-                // Note: we are using a fixed-sized buffer for simplicity here. See ImGuiInputTextFlags_CallbackResize
-                // and the code in misc/cpp/imgui_stdlib.h for how to setup InputText() for dynamically resizing strings.
-            
-            ImGui::Text("Command field");
-            ImGui::SameLine();
-            HelpMarker(helptext);
-            ImGui::InputTextMultiline("##source", text, IM_ARRAYSIZE(text),
-                ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 16), ImGuiInputTextFlags_AllowTabInput);
-            
-            if (ImGui::Button("Translate!"))
-            {
-                fileDialog.Open();
-                Save_configuration();
-            }
-            fileDialog.Display();
-            if (fileDialog.HasSelected())
-            {
-                static bool translating_window = true;
-                ImGui::SetNextWindowSize(ImVec2(700, 200));
-                //ImGui::SetNextWindowPos(ImVec2(0, 0));
-                ImGui::SetWindowFocus();
-                ImGui::Begin("Translating...", &translating_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-                ImGui::Text("Translating in progress.. \nOutput file will be available in the same directory as original file. ");
-                ImGui::SetWindowFocus();
-                ImGui::End();
-                if (refreshed_translate_window) {
-                    path = fileDialog.GetSelected().string();
-                    std::cout << "Selected filename: " << path << std::endl;
-                    auto commands = Process_raw_commands(std::span(text, raw_commands_size));
-
-                    show_error_message = !xml_parser.translate(
-                        path,
-                        commands,
-                        *locales[input_locale_index],
-                        *locales[output_locale_index]
-                    );
-
-                    fileDialog.ClearSelected();
-                    refreshed_translate_window = false;
-                }
-                else
-                    refreshed_translate_window = true;
-            }
-        }
-        if (show_error_message)
-        {
-            ImGui::Begin("Error", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Translation aborted. There's probably an error in the syntax of your commands or you've selected wrong file.");
-            ImGui::SetWindowFocus();
-            if (ImGui::Button("OK"))
-            {
-                show_error_message = false;
-                show_another_window = false;
-            }
-            ImGui::End();
-        }
-        ImGui::End();
-
-        // demo window for feature reference
-       /* if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);*/
+        // Application logic
+        app.Loop();
 
         // Rendering
         ImGui::EndFrame();

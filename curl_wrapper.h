@@ -22,6 +22,13 @@ public:
     cURL_wrapper(const char* AUTH_KEY);
     cURL_wrapper(const std::string& auth_key);
     ~cURL_wrapper();
-    static std::string run_request(const std::string& text, const std::string& target_lang, const std::string& input_lang);
+    static std::string run_deepl_request(const std::string& text, const std::string& target_lang, const std::string& input_lang);
 };
 
+struct out_of_quota_exception : std::exception
+{
+    const char* what() const throw ()
+    {
+        return "User out of quota";
+    }
+};
